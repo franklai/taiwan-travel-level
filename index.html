@@ -1,66 +1,218 @@
 <!DOCTYPE html>
-<style>
-  .states :hover {
-    fill: red;
-  }
+<html>
+<meta charset="utf-8">
 
-  .state-borders {
-    fill: none;
-    stroke: #fff;
-    stroke-width: 0.5px;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    pointer-events: none;
-  }
+<head>
+  <style>
+    .states {
+      fill: white;
+      stroke: #333;
+    }
 
-  #tooltip {
-    display: inline-block;
-    position: absolute;
-  }
-</style>
-<svg width="960" height="800"></svg>
-<span id="tooltip">
-<span id="county-name-tooltip">abc</span>
-</span>
-<script src="https://d3js.org/d3.v3.min.js"></script>
-<script src="https://d3js.org/topojson.v1.min.js"></script>
-<script>
+    .states :hover {
+      fill: red;
+      cursor: pointer;
+    }
 
-  var svg = d3.select("svg");
+    .state-borders {
+      fill: none;
+      stroke: #333;
+      stroke-width: 0.5px;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      pointer-events: none;
+    }
 
-  //var path = d3.geoPath();
-  var projection = d3.geo.mercator()
-    .center([121, 24.8])
-    .scale(5000);
-  var path = d3.geo.path().projection(projection);
+    #tooltip {
+      display: inline-block;
+      position: absolute;
+      border: 2px solid #999;
+      border-radius: 10px;
+      background-color: #EEE;
+      padding: 3px 6px;
+      top: -200px;
+      left: -200px;
+    }
 
-  console.log("path,", path);
+    .menu {
+      position: absolute;
+      top: -100px;
+      left: -200px;
+      background-color: #EEE;
+      border: 2px solid #999;
+      border-radius: 6px;
+    }
+    .menu ul {
+      padding: 6px 0;
+      margin: 0;
+    }
+    .menu li {
+      list-style: none;
+      margin: 0;
+      padding: 3px 16px;
+    }
+    #county-name {
+      font-weight: bold;
+      border-bottom: 1px #333 dotted;
+      padding-bottom: 3px;
+    }
+    .menu .value {
+      cursor: pointer;
+    }
+    .menu .value.red:hover {
+      background-color: red;
+    }
+    .menu .value.orange:hover {
+      background-color: orange;
+    }
+    .menu .value.yellow:hover {
+      background-color: yellow;
+    }
+    .menu .value.green:hover {
+      background-color: #30cc70;
+    }
+    .menu .value.blue:hover {
+      background-color: #3598db;
+    }
+    .menu .value.lightgrey:hover {
+      background-color: lightgrey;
+    }
 
-  d3.json("taiwan.json", function (error, taiwan) {
-    if (error) throw error;
+  </style>
+</head>
 
-    console.log(taiwan);
+<body>
+  <svg width="960" height="800"></svg>
+  <div>
+    <div id="score-container">分數：<span id="score">0</span></div>
+  </div>
+  <span id="tooltip">
+    <span id="county-name-tooltip">abc</span>
+  </span>
+  <div class="menu" id="form">
+    <ul>
+      <li><span id="county-name">地名</span></li>
+      <li class="value red" data-value="5">居住</li>
+      <li class="value orange" data-value="4">住宿</li>
+      <li class="value yellow" data-value="3">遊玩</li>
+      <li class="value green" data-value="2">休息、換車</li>
+      <li class="value blue" data-value="1">路過</li>
+      <li class="value lightgrey" data-value="0">沒去過</li>
+    </ul>
+  </div>
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+  <script src="https://d3js.org/topojson.v1.min.js"></script>
+  <script>
 
-    svg.append("g")
-      .attr("class", "states")
-      .selectAll("path")
-      .data(topojson.feature(taiwan, taiwan.objects.County_MOI_1060525).features)
-      .enter().append("path")
-      .attr("d", path)
-      .on('mousemove', function (t) {
-        console.log("t:", t);
-        d3.select('#tooltip')
-          .style('top', d3.event.pageY + 20 + 'px')
-          .style('left', d3.event.pageX + 20 + 'px')
-          .select('#county-name-tooltip')
-          .text(t.properties.COUNTYNAME)
+    var svg = d3.select("svg");
+
+    var color_mapping = {
+      '5': 'red',
+      '4': 'orange',
+      '3': 'yellow',
+      '2': '#30cc70',
+      '1': '#3598db',
+      '0': 'lightgrey',
+    };
+
+    function color_by_value(value) {
+      return color_mapping[value];
+    }
+
+    var county_dict = {};
+    var clicked_id = '';
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function get_id(county_code) {
+      return 'county_' + county_code;
+    }
+
+    function update_score() {
+      var sum = 0;
+      for (const key in county_dict) {
+        sum += parseInt(county_dict[key], 10);
+      }
+      document.querySelector('#score').innerHTML = sum;
+    }
+
+    document.getElementById('form').addEventListener('click', function(evt) {
+      if (evt.target.tagName.toLowerCase() === 'li') {
+        const value = evt.target.getAttribute('data-value');
+        if (clicked_id) {
+          county_dict[clicked_id] = value;
+          d3.select('#' + clicked_id)
+            .style('fill', color_by_value(value));
+          
+          update_score();
+        }
+      }
+    });
+
+    document.body.addEventListener('click', function(evt) {
+      if (evt.target.tagName.toLowerCase() === 'path') {
+        return;
+      }
+      //evt.preventDefault();
+      document.querySelector('#form').style.top = '-200px';
+      document.querySelector('#form').style.left = '-200px';
+    });
+
+    //var path = d3.geoPath();
+    var projection = d3.geo.mercator()
+      .center([120.2, 24.8])
+      .scale(10000);
+    var path = d3.geo.path().projection(projection);
+
+    d3.json("taiwan.json", function (error, taiwan) {
+      if (error) throw error;
+
+      var geometries = taiwan.objects.County_MOI_1060525.geometries;
+      geometries.forEach(function(geo) {
+        county_dict[get_id(geo.properties.COUNTYCODE)] = 0;
       });
 
+      svg.append("g")
+        .attr("class", "states")
+        .selectAll("path")
+        .data(topojson.feature(taiwan, taiwan.objects.County_MOI_1060525).features)
+        .enter().append("path")
+        .attr("d", path)
+        .attr('id', function(d) {return get_id(d.properties.COUNTYCODE);})
+        .on('mousemove', function (t) {
+          d3.select('#tooltip')
+            .style('top', d3.event.pageY + 20 + 'px')
+            .style('left', d3.event.pageX + 20 + 'px')
+            .select('#county-name-tooltip')
+            .text(t.properties.COUNTYNAME)
+        })
+        .on('mouseout', function (t) {
+          d3.select('#tooltip')
+            .style('top', '-100px')
+            .style('left', '-100px')
+            .select('#county-name-tooltip')
+            .text('')
+        })
+        .on('click', function (t) {
+          d3.select('#form')
+            .style('top', d3.event.pageY + 5 + 'px')
+            .style('left', d3.event.pageX - 10 + 'px')
+            .select('#county-name')
+            .text(t.properties.COUNTYNAME)
+          
+          clicked_id = get_id(t.properties.COUNTYCODE);
+        });
 
-    svg.append("path")
-      .attr("class", "state-borders")
-      .attr("d", path(topojson.mesh(taiwan, taiwan.objects.County_MOI_1060525, function (a, b) { return a !== b; })));
 
-  });
+      svg.append("path")
+        .attr("class", "state-borders")
+        .attr("d", path(topojson.mesh(taiwan, taiwan.objects.County_MOI_1060525, function (a, b) { return a !== b; })));
 
-</script>
+    });
+
+  </script>
+</body>
+
+</html>
