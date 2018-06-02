@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width" />
+<title>台灣旅遊等級</title>
 
 <head>
   <style>
+    body {
+      background-color: #aadaff;
+    }
+
+    #svg {
+      width: 800px;
+      height: 800px;
+    }
+
     .states {
-      fill: white;
+      fill: lightgrey;
       stroke: #333;
     }
 
     .states :hover {
-      fill: red;
+      fill: white;
       cursor: pointer;
     }
 
@@ -42,56 +53,69 @@
       border: 2px solid #999;
       border-radius: 6px;
     }
+
     .menu ul {
       padding: 6px 0;
       margin: 0;
     }
+
     .menu li {
       list-style: none;
       margin: 0;
       padding: 3px 16px;
     }
+
     #county-name {
       font-weight: bold;
       border-bottom: 1px #333 dotted;
       padding-bottom: 3px;
     }
+
     .menu .value {
       cursor: pointer;
     }
+
     .menu .value.red:hover {
       background-color: red;
     }
+
     .menu .value.orange:hover {
       background-color: orange;
     }
+
     .menu .value.yellow:hover {
       background-color: yellow;
     }
+
     .menu .value.green:hover {
       background-color: #30cc70;
     }
+
     .menu .value.blue:hover {
       background-color: #3598db;
     }
+
     .menu .value.lightgrey:hover {
       background-color: lightgrey;
     }
-
   </style>
 </head>
 
 <body>
-  <svg width="960" height="800"></svg>
+  <svg id="svg"></svg>
   <div>
-    <div id="score-container">分數：<span id="score">0</span></div>
+    <div id="score-container">分數：
+      <span id="score">0</span>
+    </div>
   </div>
   <span id="tooltip">
     <span id="county-name-tooltip">abc</span>
   </span>
   <div class="menu" id="form">
     <ul>
-      <li><span id="county-name">地名</span></li>
+      <li>
+        <span id="county-name">地名</span>
+      </li>
       <li class="value red" data-value="5">居住</li>
       <li class="value orange" data-value="4">住宿</li>
       <li class="value yellow" data-value="3">遊玩</li>
@@ -100,8 +124,12 @@
       <li class="value lightgrey" data-value="0">沒去過</li>
     </ul>
   </div>
+  <div id="share">
+    <button id="save">Save as image</button>
+  </div>
   <script src="https://d3js.org/d3.v3.min.js"></script>
   <script src="https://d3js.org/topojson.v1.min.js"></script>
+  <script src="saveSvgAsPng.js"></script>
   <script>
 
     var svg = d3.select("svg");
@@ -125,6 +153,9 @@
     function $(id) {
       return document.getElementById(id);
     }
+    function q(selector) {
+      return document.querySelector(selector);
+    }
 
     function get_id(county_code) {
       return 'county_' + county_code;
@@ -138,20 +169,24 @@
       document.querySelector('#score').innerHTML = sum;
     }
 
-    document.getElementById('form').addEventListener('click', function(evt) {
+    document.getElementById('form').addEventListener('click', function (evt) {
       if (evt.target.tagName.toLowerCase() === 'li') {
         const value = evt.target.getAttribute('data-value');
         if (clicked_id) {
           county_dict[clicked_id] = value;
           d3.select('#' + clicked_id)
             .style('fill', color_by_value(value));
-          
+
           update_score();
         }
       }
     });
 
-    document.body.addEventListener('click', function(evt) {
+    q('#save').addEventListener('click', function(evt) {
+      saveSvgAsPng(q('svg'), 'plog.png');
+    });
+
+    document.body.addEventListener('click', function (evt) {
       if (evt.target.tagName.toLowerCase() === 'path') {
         return;
       }
@@ -162,15 +197,16 @@
 
     //var path = d3.geoPath();
     var projection = d3.geo.mercator()
-      .center([120.2, 24.8])
+      .center([121, 24.2])
       .scale(10000);
     var path = d3.geo.path().projection(projection);
+
 
     d3.json("taiwan.json", function (error, taiwan) {
       if (error) throw error;
 
       var geometries = taiwan.objects.County_MOI_1060525.geometries;
-      geometries.forEach(function(geo) {
+      geometries.forEach(function (geo) {
         county_dict[get_id(geo.properties.COUNTYCODE)] = 0;
       });
 
@@ -180,7 +216,7 @@
         .data(topojson.feature(taiwan, taiwan.objects.County_MOI_1060525).features)
         .enter().append("path")
         .attr("d", path)
-        .attr('id', function(d) {return get_id(d.properties.COUNTYCODE);})
+        .attr('id', function (d) { return get_id(d.properties.COUNTYCODE); })
         .on('mousemove', function (t) {
           d3.select('#tooltip')
             .style('top', d3.event.pageY + 20 + 'px')
@@ -201,7 +237,7 @@
             .style('left', d3.event.pageX - 10 + 'px')
             .select('#county-name')
             .text(t.properties.COUNTYNAME)
-          
+
           clicked_id = get_id(t.properties.COUNTYCODE);
         });
 
